@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Pungyeon/go-microservice/messaging/event"
+	"github.com/Pungyeon/go-rabbitmq-example/lib/event"
 	"github.com/streadway/amqp"
 )
 

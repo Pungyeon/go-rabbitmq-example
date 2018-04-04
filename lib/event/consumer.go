@@ -17,12 +17,7 @@ func (consumer *Consumer) setup() error {
 	if err != nil {
 		return err
 	}
-	// _, err = declareQueue(channel)
-	err = declareExchange(channel)
-	if err != nil {
-		return err
-	}
-	return nil
+	return declareExchange(channel)
 }
 
 // NewConsumer returns a new Consumer

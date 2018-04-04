@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Pungyeon/go-microservice/messaging/event"
+	"github.com/Pungyeon/go-rabbitmq-example/lib/event"
 	"github.com/streadway/amqp"
 )
 
@@ -20,6 +20,6 @@ func main() {
 	}
 
 	for i := 1; i < 10; i++ {
-		emitter.Push(fmt.Sprintf("[%d] - Automated test message", i), os.Args[1])
+		emitter.Push(fmt.Sprintf("[%d] - %s", i, os.Args[1]), os.Args[1])
 	}
 }

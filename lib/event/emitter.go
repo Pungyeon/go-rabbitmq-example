@@ -18,8 +18,7 @@ func (e *Emitter) setup() error {
 	}
 
 	defer channel.Close()
-	_, err = declareQueue(channel)
-	return err
+	return declareExchange(channel)
 }
 
 // Push (Publish) a specified message to the AMQP exchange
@@ -47,24 +46,6 @@ func (e *Emitter) Push(event string, severity string) error {
 	)
 	log.Printf("Sending message: %s -> %s", event, getExchangeName())
 	return nil
-}
-
-// PushToQueue (Publish) a specified message to the AMQP queue
-func (e *Emitter) PushToQueue(event string) error {
-	channel, err := e.connection.Channel()
-	if err != nil {
-		return err
-	}
-
-	defer channel.Close()
-	msg := amqp.Publishing{
-		DeliveryMode: amqp.Persistent,
-		Body:         []byte(event),
-		ContentType:  "text/plain",
-	}
-
-	log.Printf("Sending message: %s -> %s", event, getQueueName())
-	return channel.Publish("", getQueueName(), false, false, msg)
 }
 
 // NewEventEmitter returns a new event.Emitter object

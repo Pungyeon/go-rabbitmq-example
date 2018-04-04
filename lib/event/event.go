@@ -4,23 +4,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func getQueueName() string {
-	return "task_queue"
-}
-
 func getExchangeName() string {
 	return "logs_topic"
-}
-
-func declareQueue(ch *amqp.Channel) (amqp.Queue, error) {
-	return ch.QueueDeclare(
-		getQueueName(), // name
-		true,           // durable
-		false,          // delete when unused
-		false,          // exclusive
-		false,          // no-wait
-		nil,            // arguments
-	)
 }
 
 func declareRandomQueue(ch *amqp.Channel) (amqp.Queue, error) {
