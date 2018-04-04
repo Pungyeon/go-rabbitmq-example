@@ -43,11 +43,4 @@ func TestConsumerCreatSuccess(t *testing.T) {
 	}
 
 	defer conn.Close()
-	/*
-		consumer := NewConsumer(conn)
-		err = consumer.Listen()
-		if err != nil {
-			t.Errorf("Could not consume queue messages: %v", err)
-		}
-	*/
 }
