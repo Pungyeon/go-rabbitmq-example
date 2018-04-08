@@ -1,7 +1,19 @@
+# Using RabbitMQ with Golang
+
 ## Golang
+So, why Golang? Why not Java or Python? Java has a much larger user base and Python is a much simpler language to write. So why choose Golang? Well. Golang is a modern language, which has great support for modern software architecture. Golang is a very small language, it's compiled (not transpiled and not run by the JVM) so, building Docker containers with Golang is a match made in heaven. Small Docker images, with performance similar to languages like C. So, this also makes Golang a great language for writing microservices... And, you can't say microservices without saying event-driven architecture! So, let's write a simple Golang program, to exemplify using Golang with RabbitMQ to support and event driven architecture.
+
+There are many other fantastic features of Golang, but I won't go too much into detail. If you are interested, I would recommend watching this short interview with Nic Jackson from Hashicorp: https://www.youtube.com/watch?v=qlwp0mHFLHU
 
 ## Event-Driven Architecture
-https://www.youtube.com/watch?v=STKCRSUsyP0
+Event-Driven Architecture (EDA) is another of those buzzwords that have been inflated by the Microservice wave. However, EDA has been popular looooooooooong before Microservices. Essentially, EDA is a pattern for communication of state. It's been immensely popular in the financial industry for decades, as the pattern is particularly suited for handling transaction state. The reason why it has become so attached when speaking of Microservices, is that in Microservice Architecture, you want everything to be loosely coupled. Essentially, you don't want one service to be attached to another. You want to avoid situations in which you change something in one service and then must make a corresponding change to one or all other services.
+
+Let's think of an HTTP service, in which we are communicating with one or more services. Who decides who receives data? It's the HTTP service, which directly calls each and every one of those services. So... what happens if we create a new service that also needs this data? We would have to ask whoever is maintaining the HTTP service, if they could make sure, that our service also could receive this data. 
+
+However, in an EDA, we don't need to contact the HTTP service owners at all. An EDA typically works in a publish/subscribe pattern. Simply explained, a publisher sends a message to a message broker, who will appropriately deliver the messages to all services who are subscribed. So, if we need to create a new service, we simply tell the message broker that we are subscribing to these messages/events. The HTTP service guys don't need to know about us, and we don't need to talk to them (on a non-technical level, socially, this is also typically regarded as a win). 
+
+Now, there are many other advantages of EDA. But I will leave that to others to explain.
+
 
 ## Asynchronous Messaging Queue Protocol
 The Asynchronous Messaging Queue Protocol started development in 2003, initiated by JPMorgan Chase. The project soon caught on and became a open-source project involving some of the largest banks and technology companies (Bank of America, Barclays, Microsoft, Cisco etc.) Essentially, the project was meant to create an open standard, to improve transactions, with a focus on the financial industry. Therefore, there was a huge backing by the banking industry to develop AMQP, making it extremely efficient and reliable. AMQP relies on messaging queues to handle communication, in a so called publish/subscribe architecture. The most common pattern of implementing this, the pattern this tutorial will be looking at, is the `topic exchange`. Essentially, a publisher sends a message to an `exchange` which will distribute messages to queues, based on a `topic`. The subscriber(s) will define a `queue` and tell the exchange which `topics` they are interested in.
@@ -32,9 +44,13 @@ Simply explain we are running a docker image, running the container in --detach 
 ## Writing the Code
 So for this tutorial, we will be writing two really simple programs, to illustrate how services can communicate via. RabbitMQ. Our final project will look something like this:
 .
+
 ├───consumer
+
 ├───lib
+
 │   └───event
+
 └───sender
 
 We will be creating a `consumer` service, which will subscribe to our topics and we will define a `sender`service, which will publish random events to the exchange. Our `lib` folder, will hold some common configurations for both our consumer and sender. Before we begin, you will have to get the dependency for amqp:
@@ -336,6 +352,6 @@ Again, a very simply little service. Connection to AMQP, create a new Event Emit
 Wow! As expected our two other services are now receiving messages independantly of each other, only receiving the messages that they are subscribed to.
 
 ## Final remarks
-So, of course, this is a super simple implementation of how AMQP works. There are so many other, more exciting, functionalities that can be implemented with AMQP and Event Driven Architecture. I suggest to try to implement a simple API service, that uses RabbitMQ for event auditing. Sending all events of the API to the messaging broker and saving them as auditing logs.This can then be extended to Event Sourcing, by using this log to regenerate state in your application, by going through the auditing logs and then based on those logs, recreating the data in your applications. This is quite complicated and there are a whole lot of considerations to be made.... but it's also really fun to experiment with :)
+So, of course, this is a super simple implementation of how AMQP works. There are so many other, more exciting, functionalities that can be implemented with AMQP and Event Driven Architecture. I suggest to try to implement a simple API service, that uses RabbitMQ for event auditing. Sending all events of the API to the messaging broker and saving them as auditing logs. This can then be extended to Event Sourcing, by using this log to regenerate state in your application, by going through the auditing logs and then based on those logs, recreating the data in your applications. This is somewhat complicated and there are a whole lot of considerations to be made.... but it's also really fun to experiment with :)
 
-If anything, I strongly suggest looking at implementing a messaging broker where it makes sense. Microservices that needs loosely coupled communication or distributed services where we need to replicate state across services. More than anything, I suggest having a look at Martin Fowler's excellent talk on Event-Driven Architecture from 2017. Martin Fowler is a bit of a guru on software design and architecture and this talk certainly doesn't disappoint: https://www.youtube.com/watch?v=STKCRSUsyP0 
+If anything, I strongly suggest looking at implementing a messaging broker where it makes sense. As an example: Microservices that needs loosely coupled communication or distributed services where we need to replicate state across services. More than anything, I suggest having a look at Martin Fowler's excellent talk on Event-Driven Architecture from 2017. Martin Fowler is a bit of a guru on software design and architecture and this talk certainly doesn't disappoint: https://www.youtube.com/watch?v=STKCRSUsyP0 and if you don't like videos, he has also written a little about it here: https://martinfowler.com/articles/201701-event-driven.html
