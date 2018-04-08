@@ -42,16 +42,18 @@ With Docker, this is super simple. Simply type the following command in your ter
 Simply explain we are running a docker image, running the container in --detach mode (as a background process) naming it rabbitmq and exposing ports 5672 and 15672. Finally, we specify the image that we want to pull and eventually run: `rabbitmq:3-management`. Once the docker container has started, you can open a browser and visit http://localhost:15672 to see the management interface. We won't be using the mangement interface, but it's a good way to confirm that everything is working as intended.
 
 ## Writing the Code
+If you want to skip writing the code, but instead just want to read through and run the programs yourself. You can get the code from: https://github.com/Pungyeon/go-rabbitmq-example
+
 So for this tutorial, we will be writing two really simple programs, to illustrate how services can communicate via. RabbitMQ. Our final project will look something like this:
 .
 
-├───consumer
+--./consumer
 
-├───lib
+--./lib
 
-│   └───event
+----./event
 
-└───sender
+--./sender
 
 We will be creating a `consumer` service, which will subscribe to our topics and we will define a `sender`service, which will publish random events to the exchange. Our `lib` folder, will hold some common configurations for both our consumer and sender. Before we begin, you will have to get the dependency for amqp:
 
