@@ -1,7 +1,7 @@
 ## Golang
 
 ## Event-Driven Architecture
-
+https://www.youtube.com/watch?v=STKCRSUsyP0
 
 ## Asynchronous Messaging Queue Protocol
 The Asynchronous Messaging Queue Protocol started development in 2003, initiated by JPMorgan Chase. The project soon caught on and became a open-source project involving some of the largest banks and technology companies (Bank of America, Barclays, Microsoft, Cisco etc.) Essentially, the project was meant to create an open standard, to improve transactions, with a focus on the financial industry. Therefore, there was a huge backing by the banking industry to develop AMQP, making it extremely efficient and reliable. AMQP relies on messaging queues to handle communication, in a so called publish/subscribe architecture. The most common pattern of implementing this, the pattern this tutorial will be looking at, is the `topic exchange`. Essentially, a publisher sends a message to an `exchange` which will distribute messages to queues, based on a `topic`. The subscriber(s) will define a `queue` and tell the exchange which `topics` they are interested in.
@@ -48,7 +48,40 @@ All files in this section will be placed in `lib/event`.
 
 #### event.go
 First, we will write our library consisting of queue declaration and our structs for consumer and emitter:
-<script src="https://gist.github.com/Pungyeon/7b2fe6cca03b81f9edbed13513be2413.js"></script>
+```go
+package event
+
+import (
+	"github.com/streadway/amqp"
+)
+
+func getExchangeName() string {
+	return "logs_topic"
+}
+
+func declareRandomQueue(ch *amqp.Channel) (amqp.Queue, error) {
+	return ch.QueueDeclare(
+		"",    // name
+		false, // durable
+		false, // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+}
+
+func declareExchange(ch *amqp.Channel) error {
+	return ch.ExchangeDeclare(
+		getExchangeName(), // name
+		"topic",           // type
+		true,              // durable
+		false,             // auto-deleted
+		false,             // internal
+		false,             // no-wait
+		nil,               // arguments
+	)
+}
+```
 
 In this file, we are defining three static methods. The `getExchangeName` function simply returns the name of our exchange. It isn't necessary, but nice for this tutorial, to make it simple to change your topic name. More interesting is the `declareRandomQueue` function. This function will create a nameless queue, which RabbitMQ will assign a random name to, we don't want to worry about this and that is why we are letting RabbitMQ worry about it. The queue is also defined as `exclusive`, which means that when defined only one subscriber can be subscribed to this queue. The last function that we have declared is `declareExchange` which will declare an exchange, as the name suggests. This function is idempotent, so if the exchange already exists, no worries, it won't create duplicates. However, if we were to change the type of the Exchange (to direct or fanout), then we would have to either delete the old exchange or find a new name, as you cannot overwrite exchanges.
 
@@ -57,7 +90,72 @@ In this file, we are defining three static methods. The `getExchangeName` functi
 ### emitter.go
 Next, we will define our publisher. I have chosen to call it emitter, because I thought: "There simply aren't enough new terms to learn in this tutorial, let's just add some more to add extra confusion".  Either way... This is our publisher. Which will publish, or in our case emit, events. 
 
-<script src="https://github.com/Pungyeon/go-rabbitmq-example/blob/dedc0351f0e4efa55a051ab3e799f73ef26c3ce0/lib/event/emitter.go"></script>
+```go
+package event
+
+import (
+	"log"
+
+	"github.com/streadway/amqp"
+)
+
+// Emitter for publishing AMQP events
+type Emitter struct {
+	connection *amqp.Connection
+}
+
+func (e *Emitter) setup() error {
+	channel, err := e.connection.Channel()
+	if err != nil {
+		panic(err)
+	}
+
+	defer channel.Close()
+	return declareExchange(channel)
+}
+
+// Push (Publish) a specified message to the AMQP exchange
+func (e *Emitter) Push(event string, severity string) error {
+	channel, err := e.connection.Channel()
+	if err != nil {
+		return err
+	}
+
+	defer channel.Close()
+	err = declareExchange(channel)
+	if err != nil {
+		return err
+	}
+
+	err = channel.Publish(
+		getExchangeName(),
+		severity,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(event),
+		},
+	)
+	log.Printf("Sending message: %s -> %s", event, getExchangeName())
+	return nil
+}
+
+// NewEventEmitter returns a new event.Emitter object
+// ensuring that the object is initialised, without error
+func NewEventEmitter(conn *amqp.Connection) (Emitter, error) {
+	emitter := Emitter{
+		connection: conn,
+	}
+
+	err := emitter.setup()
+	if err != nil {
+		return Emitter{}, err
+	}
+
+	return emitter, nil
+}
+```
 
 At the very top of our code, we are defining our Emitter struct, which contains an amqp.Connection.
 
@@ -71,7 +169,87 @@ Will simple return a new Emitter, or an error, making sure that the connection i
 #### consumer.go
 The last bit of code to write for our library, is our consumer struct and right away we can see that it is somewhat similar to our emitter struct.
 
-<script src="https://github.com/Pungyeon/go-rabbitmq-example/blob/dedc0351f0e4efa55a051ab3e799f73ef26c3ce0/lib/event/consumer.go"></script>
+```go
+package event
+
+import (
+	"log"
+
+	"github.com/streadway/amqp"
+)
+
+// Consumer for receiving AMPQ events
+type Consumer struct {
+	conn      *amqp.Connection
+	queueName string
+}
+
+func (consumer *Consumer) setup() error {
+	channel, err := consumer.conn.Channel()
+	if err != nil {
+		return err
+	}
+	return declareExchange(channel)
+}
+
+// NewConsumer returns a new Consumer
+func NewConsumer(conn *amqp.Connection) (Consumer, error) {
+	consumer := Consumer{
+		conn: conn,
+	}
+	err := consumer.setup()
+	if err != nil {
+		return Consumer{}, err
+	}
+
+	return consumer, nil
+}
+
+// Listen will listen for all new Queue publications
+// and print them to the console.
+func (consumer *Consumer) Listen(topics []string) error {
+	ch, err := consumer.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	q, err := declareRandomQueue(ch)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range topics {
+		err = ch.QueueBind(
+			q.Name,
+			s,
+			getExchangeName(),
+			false,
+			nil,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	forever := make(chan bool)
+	go func() {
+		for d := range msgs {
+			log.Printf("Received a message: %s", d.Body)
+		}
+	}()
+
+	log.Printf("[*] Waiting for message [Exchange, Queue][%s, %s]. To exit press CTRL+C", getExchangeName(), q.Name)
+	<-forever
+	return nil
+}
+```
 
 At the very top we define that our `Consumer` struct defines a connection to our AMQP server and a queueName. The queue name will store the randomly generated name of our declared nameless queue. We will use this for telling RabbitMQ that we want to bind/listen to this particular queue for messages.
 
@@ -87,4 +265,79 @@ The `forever` channel that we are making on line #69, and sending output from on
 ### Consumer Service
 All files in this section will be placed in the `consumer` folder.
 
+```go
+package main
 
+import (
+	"os"
+
+	"github.com/Pungyeon/go-rabbitmq-example/lib/event"
+	"github.com/streadway/amqp"
+)
+
+func main() {
+	connection, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	if err != nil {
+		panic(err)
+	}
+	defer connection.Close()
+
+	consumer, err := event.NewConsumer(connection)
+	if err != nil {
+		panic(err)
+	}
+	consumer.Listen(os.Args[1:])
+}
+```
+
+As can be seen this is a really simple program which creates a connection to our docker instance of RabbitMQ, passes this connection to our `NewConsumer` function and then calls the `Listen` method, passing all the input arguments from the command line. Once we have written this code we can open up a few terminals to start up a few consumers:
+
+>#t1> go run consumer.go log.WARN log.ERROR
+
+>#t2> go run consumer.go log.*
+
+### Emitter Service
+
+Now for the very last bit of this tutorial. Publishing our messages to the queue:
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/Pungyeon/go-rabbitmq-example/lib/event"
+	"github.com/streadway/amqp"
+)
+
+func main() {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	if err != nil {
+		panic(err)
+	}
+
+	emitter, err := event.NewEventEmitter(conn)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 1; i < 10; i++ {
+		emitter.Push(fmt.Sprintf("[%d] - %s", i, os.Args[1]), os.Args[1])
+	}
+}
+```
+Again, a very simply little service. Connection to AMQP, create a new Event Emitter and then iterate to publish 10 messages to the exchange, using the console input as severity level. The `Push` function being input (message: "i - input", severity: input). Simples. So, run this a few times and see what happens:
+
+> #t3> go run sender.go log.WARN
+
+> #t3> go run sender.go log.ERROR
+
+> #t3> go run sender.go log.INFO
+
+Wow! As expected our two other services are now receiving messages independantly of each other, only receiving the messages that they are subscribed to.
+
+## Final remarks
+So, of course, this is a super simple implementation of how AMQP works. There are so many other, more exciting, functionalities that can be implemented with AMQP and Event Driven Architecture. I suggest to try to implement a simple API service, that uses RabbitMQ for event auditing. Sending all events of the API to the messaging broker and saving them as auditing logs.This can then be extended to Event Sourcing, by using this log to regenerate state in your application, by going through the auditing logs and then based on those logs, recreating the data in your applications. This is quite complicated and there are a whole lot of considerations to be made.... but it's also really fun to experiment with :)
+
+If anything, I strongly suggest looking at implementing a messaging broker where it makes sense. Microservices that needs loosely coupled communication or distributed services where we need to replicate state across services. More than anything, I suggest having a look at Martin Fowler's excellent talk on Event-Driven Architecture from 2017. Martin Fowler is a bit of a guru on software design and architecture and this talk certainly doesn't disappoint: https://www.youtube.com/watch?v=STKCRSUsyP0 
