@@ -306,7 +306,7 @@ As can be seen this is a really simple program which creates a connection to our
 
 >#t1> go run consumer.go log.WARN log.ERROR
 
->#t2> go run consumer.go log.*
+>#t2> go run consumer.go log.INFO log.WARN
 
 ### Emitter Service
 
