@@ -177,7 +177,7 @@ At the very top of our code, we are defining our Emitter struct, which contains 
 
 **Push** - Sends a message to our exchange. First we get a new `Channel` from our connection pool and if we receive no errors when doing so, we publish our message. Declaring the exchange with using our static method. The function takes two input parameters `event` and `severity`; Event is the message to be sent and severity is our logging serverity, which will define which messages are received by which subscribers, based on their search queries. 
 
-**NewEventEmitter** - Will simple return a new Emitter, or an error, making sure that the connection is established to our AMQP server.
+**NewEventEmitter** - Will return a new Emitter, or an error, making sure that the connection is established to our AMQP server.
 
 #### consumer.go
 The last bit of code to write for our library, is our consumer struct and right away we can see that it is somewhat similar to our emitter struct.
@@ -272,7 +272,7 @@ At the very top we define that our `Consumer` struct defines a connection to our
 
 **Listen** - We get a new channel from our connection pool. We declare our nameless queue and then we iterate over our input array `topics`. For each topic in topics, we will bind our search query to the queue. As an example, this could be `log.WARN` and `log.ERROR`. Lastly, we will invoke the Consume function (to start listening on the queue) and define that we will interface over all the messages (forever) and print out these message to the console. 
 
-The `forever` channel that we are making on line #69, and sending output from on line #77, is just a dummy. This is a simple way of ensuring a program will run forever. Essentially, we are defining a channel, which we will wait for until it receives input, but never actually give it any input. It's a bit dirty, but for this tutorial it will suffice. 
+The `forever` channel that we are making on line #69, and sending output from on line #77, is just a dummy. This is a simple way of ensuring a program will run forever. Essentially, we are defining a channel, which we will wait for until it receives input, but we will never actually send it any input. It's a bit dirty, but for this tutorial it will suffice. 
 
 ### Consumer Service
 All files in this section will be placed in the `consumer` folder.
