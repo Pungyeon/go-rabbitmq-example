@@ -65,7 +65,7 @@ But that's it, now we are ready to write some code.
 All files in this section will be placed in `lib/event`.
 
 #### event.go
-First, we will write our library consisting of queue declaration and our structs for consumer and emitter:
+First, we will write our library consisting of queue declaration and our structs for consumer and emitter. We will however start with some simple queue and exchange declaration:
 ```go
 package event
 
@@ -101,7 +101,7 @@ func declareExchange(ch *amqp.Channel) error {
 }
 ```
 
-In this file, we are defining three static methods. The `getExchangeName` function simply returns the name of our exchange. It isn't necessary, but nice for this tutorial, to make it simple to change your topic name. More interesting is the `declareRandomQueue` function. This function will create a nameless queue, which RabbitMQ will assign a random name to, we don't want to worry about this and that is why we are letting RabbitMQ worry about it. The queue is also defined as `exclusive`, which means that when defined only one subscriber can be subscribed to this queue. The last function that we have declared is `declareExchange` which will declare an exchange, as the name suggests. This function is idempotent, so if the exchange already exists, no worries, it won't create duplicates. However, if we were to change the type of the Exchange (to direct or fanout), then we would have to either delete the old exchange or find a new name, as you cannot overwrite exchanges.
+In this file, we are defining three static methods. The `getExchangeName` function simply returns the name of our exchange. It isn't necessary, but nice for this tutorial, to make it simple to change your topic name. More interesting is the `declareRandomQueue` function. This function will create a nameless queue, which RabbitMQ will assign a random name, we don't want to worry about this and that is why we are letting RabbitMQ worry about it. The queue is also defined as `exclusive`, which means that when defined only one subscriber can be subscribed to this queue. The last function that we have declared is `declareExchange` which will declare an exchange, as the name suggests. This function is idempotent, so if the exchange already exists, no worries, it won't create duplicates. However, if we were to change the type of the Exchange (to direct or fanout), then we would have to either delete the old exchange or find a new name, as you cannot overwrite exchanges. The topic type is what enables us to publish an event with a topic such as `log.WARN`, which the subscribers can specify in their search queries.
 
 *NOTE: You might have noticed that both functions need an amqp.Channel struct. This is simply a pointer to an AMQP connection.*
 
@@ -140,10 +140,6 @@ func (e *Emitter) Push(event string, severity string) error {
 	}
 
 	defer channel.Close()
-	err = declareExchange(channel)
-	if err != nil {
-		return err
-	}
 
 	err = channel.Publish(
 		getExchangeName(),

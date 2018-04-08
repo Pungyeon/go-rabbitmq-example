@@ -29,10 +29,6 @@ func (e *Emitter) Push(event string, severity string) error {
 	}
 
 	defer channel.Close()
-	err = declareExchange(channel)
-	if err != nil {
-		return err
-	}
 
 	err = channel.Publish(
 		getExchangeName(),
