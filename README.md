@@ -72,9 +72,14 @@ The last bit of code to write for our library, is our consumer struct and right 
 
 At the very top we define that our `Consumer` struct defines a connection to our AMQP server and a queueName. The queue name will store the randomly generated name of our declared nameless queue. We will use this for telling RabbitMQ that we want to bind/listen to this particular queue for messages.
 
-`setup`: We ensure that the exchange is declared, just like we do in our emitter struct.
+##### setup()
+We ensure that the exchange is declared, just like we do in our emitter struct.
 `NewConsumer`: We return a new Consumer or an error, ensuring that everything went well connecting to our AMQP server.
 `Listen`: We get a new channel from our connection pool. We declare our nameless queue and then we iterate over our input array `topics`. For each topic in topics, we will bind our search query to the queue. As an example, this could be `log.WARN` and `log.ERROR`. Lastly, we will invoke the Consume function (to start listening on the queue) and define that we will interface over all the messages (forever) and print out these message to the console. 
 
 The `forever` channel that we are making on line #69, and sending output from on line #77, is just a dummy. This is a simple way of ensuring a program will run forever. Essentially, we are defining a channel, which we will wait for until it receives input, but never actually give it any input. It's a bit dirty, but for this tutorial it will suffice. 
+
+### Consumer Service
+All files in this section will be placed in the `consumer` folder.
+
 
