@@ -6,7 +6,7 @@ So, why Golang? Why not Java or Python? Java has a much larger user base and Pyt
 There are many other fantastic features of Golang, but I won't go too much into detail. If you are interested, I would recommend watching this short interview with Nic Jackson from Hashicorp: https://www.youtube.com/watch?v=qlwp0mHFLHU
 
 ## Event-Driven Architecture
-Event Driven Architecture has been popular looooooooooong before Microservices, but now that Microservices are all the talk, so is EDA. Essentially, EDA is a pattern for communication of state. It's been immensely popular in the financial industry for decades, as the pattern is particularly suited for handling transaction state. The reason why it has become so attached when speaking of Microservices, is that in Microservice Architecture, you want everything to be loosely coupled. Essentially, you don't want one service to be attached to another. You want to avoid situations in which you change something in one service and then must make a corresponding change to one or all other services.
+Event Driven Architecture has been popular looooooooooong before Microservices, but now that Microservices are all the talk, so is EDA. Essentially, EDA is a pattern for communication of state. It's been immensely popular in the financial industry for decades, as the pattern is particularly suited for handling transaction state. The reason why it has become so attached to the conversation of Microservices, is that in Microservice Architecture, you want everything to be loosely coupled. Essentially, you don't want one service to be attached to another. You want to avoid situations in which you change something in one service and then must make a corresponding change to one or all other services.
 
 Let's think of an HTTP service, in which we are communicating with one or more services. Who decides who receives data? It's the HTTP service, which directly calls each and every one of those services. So... what happens if we create a new service that also needs this data? We would have to ask whoever is maintaining the HTTP service, if they could make sure, that our service also could receive this data. 
 
@@ -27,7 +27,7 @@ So, AMQP seems rather simple, right? It is, and that is why it's so great. We de
 It doesn't matter what you use, use what you feel comfortable in. Personally, I use visual code. It's free and super easy to setup. For installation instructions, go to: https://code.visualstudio.com/
 
 ### Docker 
-I will be using RabbitMQ, by spinning up a Docker image locally on my machine. You don't need docker to run RabbitMQ, but I would recommend using a local Docker instance, at least for this short tutorial.
+I will be using RabbitMQ, by spinning up a Docker image locally on my machine. You don't need docker to run RabbitMQ, but I would recommend using a local Docker instance, at least for this short tutorial. Docker installation instructions can be found here: https://docs.docker.com/install/
 
 ### Golang
 Installation of Golang is nice and easy. Instructions and binaries can be found at the official Golang site: https://golang.org/doc/install
@@ -39,21 +39,21 @@ With Docker, this is super simple. Simply type the following command in your ter
 
 > docker run --detach --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
 
-Simply explain we are running a docker image, running the container in --detach mode (as a background process) naming it rabbitmq and exposing ports 5672 and 15672. Finally, we specify the image that we want to pull and eventually run: `rabbitmq:3-management`. Once the docker container has started, you can open a browser and visit http://localhost:15672 to see the management interface. We won't be using the mangement interface, but it's a good way to confirm that everything is working as intended.
+We are running a docker image, running the container in --detach mode (as a background process) naming it rabbitmq and exposing ports 5672 and 15672. Finally, we specify the image that we want to pull and eventually run: `rabbitmq:3-management`. Once the docker container has started, you can open a browser and visit http://localhost:15672 to see the management interface. We won't be using the mangement interface, but it's a good way to confirm that everything is working as intended.
 
 ## Writing the Code
 If you want to skip writing the code, but instead just want to read through and run the programs yourself. You can get the code from: https://github.com/Pungyeon/go-rabbitmq-example
 
 So for this tutorial, we will be writing two really simple programs, to illustrate how services can communicate via. RabbitMQ. Our final project will look something like this:
-.
+go-rabbit-mq/
 
---./consumer
+----./consumer
 
---./lib
+----./lib
 
-----./event
+--------./event
 
---./sender
+----./sender
 
 We will be creating a `consumer` service, which will subscribe to our topics and we will define a `sender`service, which will publish random events to the exchange. Our `lib` folder, will hold some common configurations for both our consumer and sender. Before we begin, you will have to get the dependency for amqp:
 
@@ -64,7 +64,7 @@ But that's it, now we are ready to write some code.
 ### Event Queue
 All files in this section will be placed in `lib/event`.
 
-#### event.go
+#### ./lib/event/event.go
 First, we will write our library consisting of queue declaration and our structs for consumer and emitter. We will however start with some simple queue and exchange declaration:
 ```go
 package event
@@ -103,10 +103,10 @@ func declareExchange(ch *amqp.Channel) error {
 
 In this file, we are defining three static methods. The `getExchangeName` function simply returns the name of our exchange. It isn't necessary, but nice for this tutorial, to make it simple to change your topic name. More interesting is the `declareRandomQueue` function. This function will create a nameless queue, which RabbitMQ will assign a random name, we don't want to worry about this and that is why we are letting RabbitMQ worry about it. The queue is also defined as `exclusive`, which means that when defined only one subscriber can be subscribed to this queue. The last function that we have declared is `declareExchange` which will declare an exchange, as the name suggests. This function is idempotent, so if the exchange already exists, no worries, it won't create duplicates. However, if we were to change the type of the Exchange (to direct or fanout), then we would have to either delete the old exchange or find a new name, as you cannot overwrite exchanges. The topic type is what enables us to publish an event with a topic such as `log.WARN`, which the subscribers can specify in their search queries.
 
-*NOTE: You might have noticed that both functions need an amqp.Channel struct. This is simply a pointer to an AMQP connection.*
+*NOTE: You might have noticed that both functions need an amqp.Channel struct. This is simply a pointer to an AMQP connection channel. We will explain this a little better later*
 
-### emitter.go
-Next, we will define our publisher. I have chosen to call it emitter, because I thought: "There simply aren't enough new terms to learn in this tutorial, let's just add some more to add extra confusion".  Either way... This is our publisher. Which will publish, or in our case emit, events. 
+### ./lib/event/emitter.go
+Next, we will define our publisher. I have chosen to call it emitter, because I wanted to add extra confusion...  Either way... This is our publisher. Which will publish, or in our case emit, events. 
 
 ```go
 package event
@@ -171,17 +171,16 @@ func NewEventEmitter(conn *amqp.Connection) (Emitter, error) {
 }
 ```
 
-At the very top of our code, we are defining our Emitter struct, which contains an amqp.Connection.
+At the very top of our code, we are defining our Emitter struct (a class), which contains an amqp.Connection.
 
-**setup** - Makes sure that the exchange that we are sending messages to actually exists, but calling the declareExchange function from our event.go file.
+**setup** - Makes sure that the exchange that we are sending messages to actually exists. We do this by retreiving a channel from our connection pool and calling the idempotent declareExchange function from our event.go file.
 
-**Push** - Sends a message to our exchange. First we get a new `Channel` from our connection pool and if we receive no errors when doing so, we publish our message. Declaring the exchange with using our static method. The function takes two input parameters `event` and `severity`; Event is the message to be sent and severity is our logging serverity, which will define which messages are received by which subscribers, based on their search queries. 
+**Push** - Sends a message to our exchange. First we get a new `channel` from our connection pool and if we receive no errors when doing so, we publish our message. The function takes two input parameters `event` and `severity`; `event` is the message to be sent and severity is our logging serverity, which will define which messages are received by which subscribers, based on their search queries. 
 
 **NewEventEmitter** - Will return a new Emitter, or an error, making sure that the connection is established to our AMQP server.
 
-#### consumer.go
 The last bit of code to write for our library, is our consumer struct and right away we can see that it is somewhat similar to our emitter struct.
-
+#### ./lib/event/consumer.go
 ```go
 package event
 
@@ -266,17 +265,18 @@ func (consumer *Consumer) Listen(topics []string) error {
 
 At the very top we define that our `Consumer` struct defines a connection to our AMQP server and a queueName. The queue name will store the randomly generated name of our declared nameless queue. We will use this for telling RabbitMQ that we want to bind/listen to this particular queue for messages.
 
-**setup()** - We ensure that the exchange is declared, just like we do in our emitter struct.
+**setup()** - We ensure that the exchange is declared, just like we do in our Emitter struct.
 
 **NewConsumer()** - We return a new Consumer or an error, ensuring that everything went well connecting to our AMQP server.
 
-**Listen** - We get a new channel from our connection pool. We declare our nameless queue and then we iterate over our input array `topics`. For each topic in topics, we will bind our search query to the queue. As an example, this could be `log.WARN` and `log.ERROR`. Lastly, we will invoke the Consume function (to start listening on the queue) and define that we will interface over all the messages (forever) and print out these message to the console. 
+**Listen** - We get a new channel from our connection pool. We declare our nameless queue and then we iterate over our input `topics`, which is just an array of strings. For each string in topics, we will bind our search query to the queue. As an example, this could be `log.WARN` and `log.ERROR`. Lastly, we will invoke the Consume function (to start listening on the queue) and define that we will iterate over all messages received from the queue and print out these message to the console. 
 
 The `forever` channel that we are making on line #69, and sending output from on line #77, is just a dummy. This is a simple way of ensuring a program will run forever. Essentially, we are defining a channel, which we will wait for until it receives input, but we will never actually send it any input. It's a bit dirty, but for this tutorial it will suffice. 
 
 ### Consumer Service
 All files in this section will be placed in the `consumer` folder.
 
+#### ./consumer/consumer.go
 ```go
 package main
 
