@@ -306,10 +306,16 @@ As can be seen this is a really simple program which creates a connection to our
 
 >#t1> go run consumer.go log.WARN log.ERROR
 
->#t2> go run consumer.go log.INFO log.WARN
+>#t2> go run consumer.go log.*
+
+The first terminal in which we are running our consumer.go file, we are listening for all log.WARN and log.ERROR events. In the second terminal we are listening for all events. It is also possible to do a lot of other search filters with binding keys. There are only two different kind of binding keys `*` and `#`: 
+
+`*` substitutes exactly one word. So our binding key could be: `apples.*.orange`and we would receive `apples.dingdong.orange`. Similarly, we would receive `log.WARN` if our binding was `log.*`, but we wouldn't receive `log.WARN.joke`
+`#`: substitutes zero or more words. So if we use the same example as above: If our binding is `log.#` we will receive `log.WARN.joke` as well as receiving `log.WARN`.
+
+There isn't really more to it than that, which honestly, is quite nice :)
 
 ### Emitter Service
-
 Now for the very last bit of this tutorial. Publishing our messages to the queue:
 
 ```go
